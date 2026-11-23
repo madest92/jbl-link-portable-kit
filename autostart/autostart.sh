@@ -17,8 +17,8 @@ case "${1:-status}" in
     install)
         [ -s "$PLUGIN" ] || { mkdir -p "$A/build"; fetch flb-in_jbl_boot.so "$PLUGIN"; }
         # ELF32 ARM, little-endian, наш символ
-        [ "$(head -c 6 "$PLUGIN" | od -An -tx1 | tr -d ' \n')" = 7f454c460101 ] &&
-            grep -aq in_jbl_boot_plugin "$PLUGIN" || fail "$PLUGIN — не плагин автозапуска"
+        { [ "$(head -c 6 "$PLUGIN" | od -An -tx1 | tr -d ' \n')" = 7f454c460101 ] &&
+            grep -aq in_jbl_boot_plugin "$PLUGIN"; } || fail "$PLUGIN — не плагин автозапуска"
         jssh "rm -rf $STAGE && mkdir -m 700 $STAGE"
         jssh "cat > $STAGE/flb-in_jbl_boot.so" < "$PLUGIN"
         jssh "cat > $STAGE/device.sh" < "$A/device.sh"

@@ -11,4 +11,4 @@ v=$(git describe --tags --always --dirty 2>/dev/null || echo dev)
 CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 \
     go build -trimpath -ldflags "-s -w -X main.version=$v" -o build/jbl-assist .
 gzip -9 -n -c build/jbl-assist > build/jbl-assist.gz
-ls -l build/jbl-assist build/jbl-assist.gz | awk '{ printf "%-24s %.1f МБ\n", $NF, $5 / 1048576 }'
+wc -c build/jbl-assist build/jbl-assist.gz | awk '$2 != "total" { printf "%-24s %.1f МБ\n", $2, $1 / 1048576 }'

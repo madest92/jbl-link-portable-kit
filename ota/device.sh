@@ -7,7 +7,7 @@ DIR=/bkupgrade
 
 fail() { echo "ОШИБКА: $*" >&2; exit 1; }
 [ "$(id -u)" = 0 ] || fail 'нужен root'
-[ -d "$DIR" ] && [ ! -L "$DIR" ] || fail "нет каталога $DIR"
+{ [ -d "$DIR" ] && [ ! -L "$DIR" ]; } || fail "нет каталога $DIR"
 grep -Eq '"updatesDir"[[:space:]]*:[[:space:]]*"/bkupgrade"' /system/vendor/quasar/quasar.cfg ||
     fail 'обновления качаются в другой каталог'
 
@@ -19,7 +19,7 @@ no_writer() {
 no_downloads() {
     for e in "$DIR"/* "$DIR"/.[!.]* "$DIR"/..?*; do
         [ -e "$e" ] || [ -L "$e" ] || continue
-        [ "$e" = "$DIR/wiimu" ] && [ -d "$e" ] && [ ! -L "$e" ] || fail "лишнее в $DIR: $e — проверьте вручную"
+        { [ "$e" = "$DIR/wiimu" ] && [ -d "$e" ] && [ ! -L "$e" ]; } || fail "лишнее в $DIR: $e — проверьте вручную"
     done
     ! find "$DIR" -maxdepth 3 -type f | grep -Eiq '\.(img|zip|swu)$' || fail "в $DIR уже скачан образ обновления"
 }
@@ -27,7 +27,7 @@ no_downloads() {
 # можно ли создать файл в каталоге (пробный удаляется)
 writable() {
     p="$DIR/.jbl-ota-probe-$$"
-    [ ! -e "$p" ] && [ ! -L "$p" ] || fail "занято имя $p"
+    { [ ! -e "$p" ] && [ ! -L "$p" ]; } || fail "занято имя $p"
     if (set -C; : > "$p") 2>/dev/null; then
         rm -f "$p"
         return 0

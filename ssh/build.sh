@@ -36,4 +36,4 @@ else
     echo 'ОШИБКА: нужен zig или Docker' >&2
     exit 1
 fi
-ls -l build/dropbear build/dropbearkey | awk '{ printf "%-20s %.1f МБ\n", $NF, $5 / 1048576 }'
+wc -c build/dropbear build/dropbearkey | awk '$2 != "total" { printf "%-20s %.1f МБ\n", $2, $1 / 1048576 }'

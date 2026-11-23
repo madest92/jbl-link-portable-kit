@@ -23,7 +23,7 @@ restart_adbd() {
     while :; do
         if listening; then [ "$1" = open ] && return 0; else [ "$1" = closed ] && return 0; fi
         i=$((i + 1))
-        [ $i -lt 40 ] || return 1
+        [ "$i" -lt 40 ] || return 1
         sleep 0.25
     done
 }
@@ -59,7 +59,7 @@ case "${1:-status}" in
     network-on)
         grep -aFq "$NET" /usr/bin/adbd || fail 'adbd не знает маркер сетевого ADB'
         [ ! -L "$NET" ] || fail "символическая ссылка: $NET"
-        if [ -e "$NET" ]; then [ -f "$NET" ] && [ ! -s "$NET" ] || fail "не пустой файл: $NET"; fi
+        if [ -e "$NET" ]; then { [ -f "$NET" ] && [ ! -s "$NET" ]; } || fail "не пустой файл: $NET"; fi
         [ -e "$NET" ] || : > "$NET"
         chattr +i "$NET"
         sync
@@ -68,8 +68,8 @@ case "${1:-status}" in
         ;;
     network-off)
         if [ -e "$NET" ] || [ -L "$NET" ]; then
-            [ -f "$NET" ] && [ ! -L "$NET" ] || fail "не файл: $NET"
-            chattr -i "$NET" && rm -f "$NET" && sync || fail "не удалось убрать $NET"
+            { [ -f "$NET" ] && [ ! -L "$NET" ]; } || fail "не файл: $NET"
+            { chattr -i "$NET" && rm -f "$NET" && sync; } || fail "не удалось убрать $NET"
         fi
         ! listening || restart_adbd closed || fail 'порт 5555 не закрылся'
         echo 'сетевой ADB выключен: порт 5555 закрыт'

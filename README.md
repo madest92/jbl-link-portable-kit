@@ -10,21 +10,23 @@
 
 ## Что понадобится
 
+- Колонка, настроенная в приложении и подключённая к Wi-Fi.
 - Кабель USB-C с передачей данных (задний разъём колонки).
 - Компьютер с Linux или macOS: `adb`, OpenSSH, `curl` или `wget`.
-- Колонка, настроенная в приложении и подключённая к Wi-Fi; её IP в локальной сети.
 
 ## Установка
 
-Два шага, команды — из корня набора; `IP` — адрес колонки.
+Два шага, команды — из корня набора.
 
 ### 1. Колонка с SSH
 
 ```sh
-sh setup.sh IP
+sh setup.sh
 ```
 
-Скрипт ведёт по шагам и пропускает уже сделанное:
+Адрес колонки скрипт находит сам: обходит локальную сеть компьютера и ищет устройство с открытыми портами 1961 и 8080. Не нашёл или нашёл несколько колонок — остановится с ошибкой; тогда укажите адрес из списка клиентов роутера: `sh setup.sh IP`. Только найти адрес — `sh find.sh`.
+
+Дальше скрипт ведёт по шагам и пропускает уже сделанное:
 
 1. **Root ADB.** Попросит выключить колонку кнопкой питания и включить, когда появится «жду USB»: в первые секунды загрузки USB ADB открыт с root. Создаст маркеры ADB, защитит их от удаления (`+i`) и после перезагрузки (попросит нажать кнопку) дождётся ADB по сети.
 2. **SSH.** Dropbear 2026.94 только по ключу на порту 22, в `/data/jbl-ssh`, со своим ключом сервера. Ключ клиента — `~/.ssh/jbl_link_portable` (создаётся; свой — `JBL_KEY=путь`). В `~/.ssh/config` добавляется `Host jbl`, если его нет. Парольный вход выключен.
@@ -47,7 +49,7 @@ EXA_KEY_FILE=~/exa.txt sh assist/deploy.sh
 ## Состав
 
 | Папка | Что | Где на колонке |
-|---|---|---|
+| --- | --- | --- |
 | [adb/](adb/) | маркеры ADB: `adb.sh enable IP`, `status`, `network-on`, `network-off` | `/data/quasar_activate_adb`, `/data/network_adb` |
 | [ssh/](ssh/) | Dropbear и служба: `ssh.sh install IP` (через ADB), `ssh.sh upgrade` | `/data/jbl-ssh`, служба `jbl-ssh` |
 | [ota/](ota/) | блокировка обновлений: `ota.sh enable`, `status`, `disable` | `+i` на `/bkupgrade` |
@@ -67,14 +69,14 @@ EXA_KEY_FILE=~/exa.txt sh assist/deploy.sh
 Бинарники в репозитории не хранятся: Dropbear, плагин автозапуска и помощника собирает CI ([ci.yml](.github/workflows/ci.yml)), а `setup.sh` и `assist/deploy.sh` скачивают их из [последнего релиза](https://github.com/madest92/jbl-link-portable-kit/releases/latest). Собрать самому — файлы окажутся в `*/build/` и будут взяты вместо скачанных:
 
 | Что | Команда | Нужно |
-|---|---|---|
+| --- | --- | --- |
 | Dropbear | `sh ssh/build.sh` | zig или Docker |
 | Помощник | `sh assist/build.sh` | Go 1.25+ |
 | Плагин автозапуска | `sh autostart/build.sh` | clang и ld.lld или Docker |
 
 Свежий Dropbear — новая `DROPBEAR_VERSION` в `ssh/build.sh` ([список версий](https://matt.ucc.asn.au/dropbear/releases/)). Обновить на колонке, где SSH уже стоит, — `sh ssh/ssh.sh upgrade`: на время замены включается сетевой ADB (запасной вход), заменяются Dropbear и `service.sh` (прежние — в `*.old`), служба перезапускается; не поднялся SSH или файлы не совпали по sha256 — прежние возвращаются через ADB. Вернуть прежнюю версию вручную — `sh ssh/ssh.sh upgrade --rollback`.
 
-CI на каждый push и pull request проверяет скрипты (shellcheck), гоняет тесты установщика автозапуска и помощника и всё собирает. Релиз — тег `v*`: `git tag v1.0 && git push --tags`.
+CI на каждый push и pull request проверяет скрипты (shellcheck), гоняет тесты установщика автозапуска и помощника, и только если всё зелёное — собирает. Релиз — тег `v*`: `git tag v1.0 && git push --tags`.
 
 ## Состояние
 
@@ -89,7 +91,7 @@ ssh jbl 'sh /data/jbl-assist/service.sh status'
 ## Откат
 
 | Что | Команда |
-|---|---|
+| --- | --- |
 | Помощник | `ssh jbl 'sh /data/jbl-assist/service.sh disable'` |
 | Автозапуск | `sh autostart/autostart.sh off` — уберёт нашу строку из `device.cfg`, файлы останутся (`on` — вернуть); совсем — затем `ssh jbl 'chattr -R -i /data/jbl-boot; rm -rf /data/jbl-boot'` |
 | SSH | `ssh jbl 'sh /data/jbl-ssh/service.sh stop'` — до следующей загрузки; совсем — откат автозапуска и `chattr -R -i /data/jbl-ssh; rm -rf /data/jbl-ssh` |
@@ -99,7 +101,7 @@ ssh jbl 'sh /data/jbl-assist/service.sh status'
 ## Если не получилось
 
 | Симптом | Что проверить |
-|---|---|
+| --- | --- |
 | Компьютер не видит колонку по USB | кабель с данными, запрос macOS, включение после «жду USB» |
 | Нет ADB по сети после перезагрузки | та же сеть, `adb connect IP:5555`; маркеры — `JBL_ADB=usb sh adb/adb.sh status` |
 | SSH просит пароль или отвергает ключ | `Host jbl` в `~/.ssh/config`: `HostName`, порт 22, `IdentityFile` — ключ, что на колонке |

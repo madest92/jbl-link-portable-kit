@@ -32,6 +32,7 @@ ssh jbl 'grep -c SYNC_PTR /data/quasar/daemons_logs/maind.log'
 | Файл | Где работает | Что делает |
 | --- | --- | --- |
 | [setup.sh](setup.sh) | компьютер | всё по шагам: ADB → SSH → блокировка OTA → автозапуск → закрыть сетевой ADB → проверка после перезагрузки |
+| [find.sh](find.sh) | компьютер | поиск колонки без аргументов, вызывается из `setup.sh`; не нашёл или нашёл несколько — ошибка: сети — у физических интерфейсов (Linux — `/sys/class/net/*/device`, macOS — `en*`) с маской, шире /16 урезаются; `nc -z` по 1961 и 8080 (оба открыты только у Алисы) через `xargs -P`; адрес — на stdout |
 | [lib/kit.sh](lib/kit.sh) | компьютер | `fail`, `jssh`, `jadb`, `on_device`, `fetch`, `ssh_port` — общее для всех скриптов компьютера |
 | [adb/adb.sh](adb/adb.sh) → [adb/device.sh](adb/device.sh) | компьютер → колонка | маркеры ADB; `network-on`/`network-off` — сетевой ADB сейчас |
 | [ssh/ssh.sh](ssh/ssh.sh) → [ssh/service.sh](ssh/service.sh) | компьютер → колонка | `install IP` — первая установка через ADB, `Host jbl` в `~/.ssh/config`; `upgrade [--rollback]` — замена Dropbear и `service.sh` под запасным сетевым ADB |
@@ -115,16 +116,15 @@ TCP на 127.0.0.1, кадр — 4 байта длины (LE) + protobuf `Quasar
 ## Правки и коммиты
 
 - Изменились поведение, команды, пути или состав файлов — в той же правке обновить [README.md](README.md) (для пользователя), [assist/README.md](assist/README.md) (для помощника) и этот файл, если это их касается.
-- Markdown — без переноса строк по ширине: абзац и пункт списка — одной строкой.
+- Markdown — без переноса строк по ширине: абзац и пункт списка — одной строкой. Разделитель таблицы — с пробелами, `| --- | --- |`, не `|---|---|`: иначе ругается линтер.
 - Коммиты — на русском и лаконично: заголовок — что сделано; тело — только неочевидное «почему», если оно есть; каждая строка — не длиннее 80 символов. Без упоминаний ИИ и строк `Co-Authored-By`.
 
 ## Проверка
 
-Как в CI ([ci.yml](.github/workflows/ci.yml)):
+Как в CI ([ci.yml](.github/workflows/ci.yml)); настройки shellcheck — в [.shellcheckrc](.shellcheckrc):
 
 ```sh
-shellcheck -s sh -e SC1091,SC2012,SC2015,SC2029,SC2174 setup.sh lib/kit.sh adb/*.sh ota/*.sh \
-    ssh/*.sh assist/*.sh autostart/*.sh
+git ls-files '*.sh' | xargs shellcheck
 go -C assist test -race ./...
 sh assist/build.sh && sh ssh/build.sh && sh autostart/build.sh
 ```

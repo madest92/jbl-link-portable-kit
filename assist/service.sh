@@ -18,14 +18,14 @@ fail() { echo "ERROR: $*" >&2; exit 1; }
 root() { [ "$(id -u)" = 0 ] || fail 'нужен root'; }
 
 # файл $1 — не наш (нет метки) — не трогать
-ours() { [ ! -e "$1" ] && [ ! -L "$1" ] || { [ ! -L "$1" ] && grep -Fxq "$MARK" "$1"; }; }
+ours() { { [ ! -e "$1" ] && [ ! -L "$1" ]; } || { [ ! -L "$1" ] && grep -Fxq "$MARK" "$1"; }; }
 
 case "${1:-}" in
     unpack)
         # /tmp чистится при перезагрузке; каталог — только root
-        mkdir -p -m 700 "$RUN" || exit 1
+        { mkdir -p "$RUN" && chmod 700 "$RUN"; } || exit 1
         [ "$(stat -c %u:%a "$RUN")" = 0:700 ] || fail "$RUN: не root 700"
-        gunzip -c "$DIR/jbl-assist.gz" > "$BIN.new" && chmod 700 "$BIN.new" && mv -f "$BIN.new" "$BIN" ||
+        { gunzip -c "$DIR/jbl-assist.gz" > "$BIN.new" && chmod 700 "$BIN.new" && mv -f "$BIN.new" "$BIN"; } ||
             { rm -f "$BIN.new"; fail 'не удалось распаковать'; } ;;
     start)
         systemctl is-active --quiet "$UNIT" && { echo "$UNIT уже запущена"; exit 0; }
@@ -53,8 +53,8 @@ UNIT
         [ -d "$HOOKS" ] || fail "нет $HOOKS: сначала установите автозапуск: sh autostart/autostart.sh install"
         ours "$HOOK" || fail "$HOOK создан не этим скриптом"
         # droproot_setup.sh при загрузке открывает /data группе users: каталог — root, go-rwx, +i
-        chattr -R -i "$DIR" && chown -R 0:0 "$DIR" && chmod -R go-rwx "$DIR" &&
-            chattr -R +i "$DIR" || fail "не удалось закрыть $DIR"
+        { chattr -R -i "$DIR" && chown -R 0:0 "$DIR" && chmod -R go-rwx "$DIR" &&
+            chattr -R +i "$DIR"; } || fail "не удалось закрыть $DIR"
         chattr -i "$HOOKS" || fail "не удалось снять +i с $HOOKS"
         [ ! -e "$HOOK" ] || chattr -i "$HOOK"
         # сбой хука автозапуск (device.sh hooks) запишет в журнал и итог загрузки, остальные хуки выполнит всё равно
@@ -65,7 +65,7 @@ UNIT
     disable)
         root
         if [ -f "$HOOK" ] && grep -Fxq "$MARK" "$HOOK"; then
-            chattr -i "$HOOKS" "$HOOK" && rm -f "$HOOK" && chattr +i "$HOOKS" || fail "не удалось убрать $HOOK"
+            { chattr -i "$HOOKS" "$HOOK" && rm -f "$HOOK" && chattr +i "$HOOKS"; } || fail "не удалось убрать $HOOK"
         fi
         systemctl stop "$UNIT" 2>/dev/null
         if [ -f "$UNIT_FILE" ] && grep -Fxq "$MARK" "$UNIT_FILE"; then

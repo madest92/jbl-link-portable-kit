@@ -41,14 +41,14 @@ install() {
         return
     fi
     for f in dropbear dropbearkey service.sh authorized_keys; do
-        [ -f "$stage/$f" ] && [ ! -L "$stage/$f" ] || fail "нет файла $f"
+        { [ -f "$stage/$f" ] && [ ! -L "$stage/$f" ]; } || fail "нет файла $f"
     done
     grep -q '^ssh-ed25519 ' "$stage/authorized_keys" || fail 'нужен открытый ключ ed25519'
     sh -n "$stage/service.sh"
     # остаток прерванной установки
     if [ -e "$tmp" ] || [ -L "$tmp" ]; then
-        [ -d "$tmp" ] && [ ! -L "$tmp" ] || fail "не каталог: $tmp"
-        chattr -R -i "$tmp" && rm -rf "$tmp" || fail "не удалось убрать $tmp"
+        { [ -d "$tmp" ] && [ ! -L "$tmp" ]; } || fail "не каталог: $tmp"
+        { chattr -R -i "$tmp" && rm -rf "$tmp"; } || fail "не удалось убрать $tmp"
     fi
     # сборка в $tmp: рабочий каталог появляется только целиком
     mkdir "$tmp" "$tmp/bin" "$tmp/auth"
@@ -87,7 +87,7 @@ start() {
     cp "$STATE/auth/authorized_keys" "$AUTH/authorized_keys"
     chmod 600 "$AUTH/authorized_keys"
     if [ -e "$UNIT" ] || [ -L "$UNIT" ]; then
-        [ ! -L "$UNIT" ] && grep -Fxq "$MARK" "$UNIT" || fail "$UNIT создан не этим скриптом"
+        { [ ! -L "$UNIT" ] && grep -Fxq "$MARK" "$UNIT"; } || fail "$UNIT создан не этим скриптом"
     fi
     mkdir -p "${UNIT%/*}"
     cat > "$UNIT" <<UNIT
@@ -130,8 +130,8 @@ lock() {
     done
     chattr +i "$STATE/bin" "$STATE" || rc=1
     sync
-    [ $rc = 0 ] || echo "ОШИБКА: не удалось вернуть +i в $STATE — до перезагрузки: chattr -R +i $STATE" >&2
-    return $rc
+    [ "$rc" = 0 ] || echo "ОШИБКА: не удалось вернуть +i в $STATE — до перезагрузки: chattr -R +i $STATE" >&2
+    return "$rc"
 }
 # done_swap КОД СООБЩЕНИЕ — закрыть каталог; КОД не 0 — ошибка
 done_swap() {
@@ -143,7 +143,7 @@ done_swap() {
 swap() {
     new=${1:?использование: service.sh swap КАТАЛОГ}
     for f in dropbear service.sh; do
-        [ -f "$new/$f" ] && [ ! -L "$new/$f" ] || fail "нет файла $new/$f"
+        { [ -f "$new/$f" ] && [ ! -L "$new/$f" ]; } || fail "нет файла $new/$f"
     done
     sh -n "$new/service.sh" || fail 'service.sh с ошибкой синтаксиса'
     [ -x "$STATE/bin/dropbear" ] || fail 'нет рабочего bin/dropbear'
@@ -154,7 +154,7 @@ swap() {
         chmod 755 "$STATE/bin/dropbear.new" "$STATE/service.sh.new" &&
         mv -f "$STATE/bin/dropbear" "$STATE/bin/dropbear.old" && mv -f "$STATE/bin/dropbear.new" "$STATE/bin/dropbear" &&
         mv -f "$STATE/service.sh" "$STATE/service.sh.old" && mv -f "$STATE/service.sh.new" "$STATE/service.sh" || rc=1
-    done_swap $rc 'замена не выполнена'
+    done_swap "$rc" 'замена не выполнена'
 }
 
 # back rollback|restore
@@ -163,7 +163,7 @@ back() {
     rc=0
     unlock || rc=1
     for f in $FILES; do
-        [ $rc = 0 ] && [ -f "$STATE/$f.old" ] || continue
+        { [ "$rc" = 0 ] && [ -f "$STATE/$f.old" ]; } || continue
         if [ "$1" = rollback ]; then
             mv -f "$STATE/$f" "$STATE/$f.swap" && mv -f "$STATE/$f.old" "$STATE/$f" &&
                 mv -f "$STATE/$f.swap" "$STATE/$f.old" || rc=1
@@ -171,7 +171,7 @@ back() {
             mv -f "$STATE/$f.old" "$STATE/$f" || rc=1
         fi
     done
-    done_swap $rc 'прежняя версия не возвращена'
+    done_swap "$rc" 'прежняя версия не возвращена'
 }
 
 case "${1:-status}" in
@@ -179,7 +179,7 @@ case "${1:-status}" in
     start) start ;;
     status) systemctl is-active jbl-ssh.service ;;
     stop)
-        [ -f "$UNIT" ] && grep -Fxq "$MARK" "$UNIT" || fail 'служба установлена не этим скриптом'
+        { [ -f "$UNIT" ] && grep -Fxq "$MARK" "$UNIT"; } || fail 'служба установлена не этим скриптом'
         systemctl stop jbl-ssh.service
         echo 'SSH остановлен'
         ;;

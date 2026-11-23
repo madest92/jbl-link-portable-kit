@@ -22,7 +22,7 @@ ssh_up() {
     i=0
     until [ "$(jssh id -u 2>/dev/null)" = 0 ]; do
         i=$((i + 1))
-        [ $i -lt "${1:-10}" ] || return 1
+        [ "$i" -lt "${1:-10}" ] || return 1
         sleep 3
     done
 }
@@ -98,9 +98,9 @@ upgrade() {
         jssh "[ -f $S/bin/dropbear.old ]" || fail 'прежней версии нет'
         svc=$S/service.sh
         if jssh "[ -f $S/service.sh.old ]"; then svc=$S/service.sh.old; fi
-        want=$(sums $S/bin/dropbear.old $svc)
+        want=$(sums "$S/bin/dropbear.old" "$svc")
         new_port=$(jssh "cat $svc" | ssh_port)
-        echo "сейчас: $(version $S/bin/dropbear); будет: $(version $S/bin/dropbear.old)"
+        echo "сейчас: $(version "$S/bin/dropbear"); будет: $(version "$S/bin/dropbear.old")"
         set -- rollback
     else
         [ $# = 0 ] || fail 'использование: ssh.sh upgrade [--rollback]'
@@ -108,9 +108,9 @@ upgrade() {
         jssh "rm -rf $new && mkdir -m 700 $new"
         jssh "cat > $new/dropbear && chmod 755 $new/dropbear" < "$B/dropbear"
         jssh "cat > $new/service.sh" < "$SVC"
-        want=$(sums $new/dropbear $new/service.sh)
+        want=$(sums "$new/dropbear" "$new/service.sh")
         new_port=$(ssh_port < "$SVC")
-        echo "сейчас: $(version $S/bin/dropbear); будет: $(version $new/dropbear)"
+        echo "сейчас: $(version "$S/bin/dropbear"); будет: $(version "$new/dropbear")"
         set -- swap "$new"
     fi
     [ "$new_port" = "$old_port" ] || echo "порт SSH: $old_port → $new_port"
@@ -137,10 +137,10 @@ upgrade() {
     jssh sh -s restart < "$SVC"
     sleep 5
     JBL_SSH_PORT=$new_port
-    if ssh_up && [ "$(sums $S/bin/dropbear $S/service.sh)" = "$want" ]; then
+    if ssh_up && [ "$(sums "$S/bin/dropbear" "$S/service.sh")" = "$want" ]; then
         net_off
         adb disconnect "$JBL_ADB" >/dev/null 2>&1 || true
-        echo "готово: $(version $S/bin/dropbear) на порту $new_port; прежняя — bin/dropbear.old"
+        echo "готово: $(version "$S/bin/dropbear") на порту $new_port; прежняя — bin/dropbear.old"
         cfg=$(ssh -G "$JBL_HOST" | awk '/^port / { print $2; exit }')
         [ "$cfg" = "$new_port" ] ||
             echo "ВНИМАНИЕ: в ~/.ssh/config у Host $JBL_HOST — Port $cfg; замените на Port $new_port"
@@ -150,8 +150,9 @@ upgrade() {
     echo 'SSH не поднялся или файлы не те — возвращаю прежнюю версию через ADB'
     if [ "$1" = rollback ]; then back=rollback; else back=restore; fi
     # service.sh набора — файлом: целиком в командной строке adb он не поместится
-    jadb push "$SVC" /tmp/jbl-ssh-service.sh >/dev/null &&
+    if jadb push "$SVC" /tmp/jbl-ssh-service.sh >/dev/null; then
         jadb shell "sh /tmp/jbl-ssh-service.sh $back && sh /tmp/jbl-ssh-service.sh restart; rm -f /tmp/jbl-ssh-service.sh" || true
+    fi
     sleep 5
     # shellcheck disable=SC2034 # читает jssh из lib/kit.sh
     JBL_SSH_PORT=$old_port

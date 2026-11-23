@@ -1,16 +1,19 @@
 #!/bin/sh
 # Готовая колонка одной командой: root ADB → SSH → блокировка обновлений → автозапуск →
 # сетевой ADB закрыт. Дальше — только ssh (алиас jbl в ~/.ssh/config). Сделанное пропускается.
-#   sh setup.sh IP
+#   sh setup.sh [IP]
+# Адрес не указан — ищется в сети (find.sh): не нашлась или нашлось несколько колонок — ошибка.
 set -eu
 KIT=$(cd "$(dirname "$0")" && pwd)
 . "$KIT/lib/kit.sh"
-IP=${1:?использование: setup.sh IP_КОЛОНКИ}
-ADB=$IP:5555
+IP=${1:-}
 
 for c in adb ssh ssh-keygen; do
     command -v "$c" >/dev/null 2>&1 || fail "нужен $c"
 done
+
+[ -n "$IP" ] || { echo 'адрес колонки не указан, ищу в сети…'; IP=$(sh "$KIT/find.sh") || exit 1; echo "колонка: $IP"; }
+ADB=$IP:5555
 
 step() { printf '\n== %s\n' "$*"; }
 ssh_ok() { [ "$(jssh id -u 2>/dev/null)" = 0 ]; }
@@ -58,7 +61,7 @@ if [ -n "$fresh" ]; then
     i=0
     until [ "$(jssh cat /proc/sys/kernel/random/boot_id 2>/dev/null || true)" != "$boot" ] && ssh_ok; do
         i=$((i + 1))
-        [ $i -lt 48 ] || fail "после перезагрузки нет ssh $JBL_HOST"
+        [ "$i" -lt 48 ] || fail "после перезагрузки нет ssh $JBL_HOST"
         sleep 5
     done
 fi

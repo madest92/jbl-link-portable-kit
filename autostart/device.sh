@@ -29,7 +29,7 @@ enabled() { grep -Fxq "$LINE" "$CFG"; }
 
 # device.cfg: обычный файл root, без чужих @INCLUDE
 check_cfg() {
-    [ -f "$CFG" ] && [ ! -L "$CFG" ] || fail "нет $CFG"
+    { [ -f "$CFG" ] && [ ! -L "$CFG" ]; } || fail "нет $CFG"
     [ "$(stat -c %u "$CFG")" = 0 ] || fail "$CFG не root"
     other=$(grep '^@INCLUDE' "$CFG" | grep -Fvx "$LINE" || true)
     [ -z "$other" ] || fail "в device.cfg чужое подключение: $other — уберите его откатом того, кто добавил"
@@ -48,7 +48,7 @@ set_line() {
         [ -s "$t" ] || { rm -f "$t"; fail "device.cfg без нашей строки пуст — не трогаю"; }
     fi
     chattr -i "$CFG" || { rm -f "$t"; fail "не снять +i с $CFG"; }
-    cat "$t" > "$CFG" && rm -f "$t" || { rm -f "$t"; fail "не записан $CFG"; }
+    { cat "$t" > "$CFG" && rm -f "$t"; } || { rm -f "$t"; fail "не записан $CFG"; }
     if [ "$1" = on ]; then
         chattr +i "$CFG" || fail "не поставить +i на $CFG"
     fi
@@ -72,21 +72,21 @@ install() {
         echo JBL_BOOT_ON
         return
     fi
-    [ ! -e "$D" ] && [ ! -L "$D" ] || fail "$D есть, но не наш"
+    { [ ! -e "$D" ] && [ ! -L "$D" ]; } || fail "$D есть, но не наш"
 
     # штатный logs.cfg: device.cfg подключён до [SERVICE], своих плагинов нет
     inc=$(grep -n '^@INCLUDE /data/quasar/fluent-bit/device.cfg' "$LOGS" | cut -d: -f1 | head -n 1)
     svc=$(grep -n '^\[SERVICE\]' "$LOGS" | cut -d: -f1 | head -n 1)
-    [ -n "$inc" ] && [ -n "$svc" ] && [ "$inc" -lt "$svc" ] || fail 'logs.cfg не такой, как ожидалось'
+    { [ -n "$inc" ] && [ -n "$svc" ] && [ "$inc" -lt "$svc" ]; } || fail 'logs.cfg не такой, как ожидалось'
     ! grep -q 'Plugins_File' "$LOGS" || fail 'в logs.cfg уже есть Plugins_File'
     for f in device.sh flb-in_jbl_boot.so; do
-        [ -f "$S/$f" ] && [ ! -L "$S/$f" ] || fail "нет файла $f"
+        { [ -f "$S/$f" ] && [ ! -L "$S/$f" ]; } || fail "нет файла $f"
     done
     sh -n "$S/device.sh"
 
     # прерванная установка
     if [ -e "$NEW" ] || [ -L "$NEW" ]; then
-        [ -d "$NEW" ] && [ ! -L "$NEW" ] || fail "не каталог: $NEW"
+        { [ -d "$NEW" ] && [ ! -L "$NEW" ]; } || fail "не каталог: $NEW"
         chattr -R -i "$NEW" 2>/dev/null || true
         rm -rf "$NEW"
     fi
@@ -128,7 +128,7 @@ status() {
         return
     fi
     if enabled; then echo "установлен и включён: $D"; else echo "установлен, выключен: $D (включить — on)"; fi
-    echo "хуки: $(cd "$D/hooks" && ls -- *.sh 2>/dev/null | tr '\n' ' ')"
+    echo "хуки: $(for h in "$D"/hooks/*.sh; do if [ -e "$h" ]; then printf '%s ' "${h##*/}"; fi; done)"
     case "$(readlink "$LINK" 2>/dev/null)" in
         *logs.cfg) echo 'режим Fluent Bit: logs.cfg — плагин грузится' ;;
         *) echo "режим Fluent Bit: $(readlink "$LINK" 2>/dev/null || echo '?') — плагин не грузится" ;;
@@ -147,8 +147,10 @@ say() { echo "$(date '+%F %T') $*"; }
 # unsafe ФАЙЛ — ссылка, не root:root или запись группе/остальным
 unsafe() {
     [ -L "$1" ] || [ "$(stat -c %u:%g "$1")" != 0:0 ] && return 0
-    case "$(stat -c %A "$1")" in ?????w* | ????????w*) return 0 ;; esac
-    return 1
+    case "$(stat -c %A "$1")" in
+        ?????w* | ????????w*) return 0 ;;
+        *) return 1 ;;
+    esac
 }
 
 boot() {
